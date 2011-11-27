@@ -7,7 +7,7 @@
     "homepage":     "http://github.com/mozz100/node-xbee",
     "repository": {
       "type" : "git",
-      "url" :  "http://github.com/mozz100/node-xbee.git"
+      "url" :  "https://github.com/mozz100/node-xbee.git"
      }
 
 }
