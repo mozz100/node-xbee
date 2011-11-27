@@ -4,10 +4,10 @@
     "author":       "Richard Morrison <richard@rmorrison.net>",
     "main":         "./xbee",
     "keywords":     ["xbee", "serialport", "robots", "sensors", "automation", "control"],
-    "homepage":     "http://github.com/mozz100/node-xbee",
+    "homepage":     "https://github.com/mozz100/node-xbee",
     "repository": {
       "type" : "git",
-      "url" :  "https://github.com/mozz100/node-xbee.git"
+      "url" :  "git://github.com/mozz100/node-xbee.git"
      }
 
 }
