@@ -1,5 +1,5 @@
 {   "name" :        "xbee",
-    "version" :     "0.0.1",
+    "version" :     "0.0.2",
     "description" : "Node talks to xbee radios through serialport",
     "author":       "Richard Morrison <richard@rmorrison.net>",
     "main":         "./xbee",
