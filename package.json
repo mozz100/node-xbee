@@ -1,0 +1,13 @@
+{   "name" :        "xbee",
+    "version" :     "0.0.1",
+    "description" : "Node talks to xbee radios through serialport",
+    "author":       "Richard Morrison <richard@rmorrison.net>",
+    "main":         "./xbee",
+    "keywords":     ["xbee", "serialport", "robots", "sensors", "automation", "control"],
+    "homepage":     "http://github.com/mozz100/node-xbee",
+    "repository": {
+      "type" : "git",
+      "url" :  "http://github.com/mozz100/node-xbee.git"
+     }
+
+}
