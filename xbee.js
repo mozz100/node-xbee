@@ -20,15 +20,16 @@ function byteArrayToHexString(a) {
     return s;
 }
 
-// module-level variable for storing a frameID.
+// module-level variable for storing a frameId.
 // Gets incremented by 1 each time it's used, so that you can
 // tell which responses relate to which XBee commands
 var frameId = 0x00;
 
-function incrementFrameID() {
-  // increment frameID and make sure it's <=255
+function incrementFrameId() {
+  // increment frameId and make sure it's <=255
   frameId += 1;
   frameId %= 256;
+  return frameId;
 }
 
 // Define some useful XBee constants
@@ -66,7 +67,9 @@ var analogPins = {
 };
 
 // constructor for an outgoing Packet.
-var Packet = function() {};
+var Packet = function() {
+  this.frameId = incrementFrameId();
+};
 
 // call getBytes to get a JS array of byte values, ready to send down the serial port
 Packet.prototype.getBytes = function() {
@@ -119,7 +122,9 @@ exports.Packet = Packet;
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // ATCommand is for setting/reading AT registers on the local XBee node.
-var ATCommand = function() {};
+var ATCommand = function() {
+  this.frameId = incrementFrameId();
+};
 sys.inherits(ATCommand, Packet);
 
 ATCommand.prototype.setCommand = function(strCmd) {
@@ -132,10 +137,9 @@ ATCommand.prototype.getPayload = function() {
   // Returns a JS array of byte values
   // which form the payload of an AT command packet.
   // Uses command0, command1 and commandParameter to build the payload.
-  incrementFrameID();
 
   // begin with the frame type and frame ID
-  var payload = [exports.FT_AT_COMMAND, frameId];
+  var payload = [exports.FT_AT_COMMAND, this.frameId];
 
   // add two bytes to identify which AT command is being used
   payload.push(this.command0);
@@ -155,6 +159,7 @@ exports.ATCommand = ATCommand;
 
 // RemoteATCommand is for setting/reading AT registers on remote XBee nodes.
 var RemoteATCommand = function() {
+  this.frameId = incrementFrameId();
   this.remoteCommandOptions = 0x02;  // set default command options on creation
 };
 sys.inherits(RemoteATCommand, ATCommand);
@@ -164,10 +169,9 @@ RemoteATCommand.prototype.getPayload = function() {
   // which form the payload of a remote AT command packet.
   // Uses command0, command1 and commandParameter to build the payload.
   // remoteCommandOptions, destination64 and destination16 are also used.
-  incrementFrameID();
 
   // begin with the frame type and frame ID
-  var payload = [exports.FT_REMOTE_AT_COMMAND, frameId];
+  var payload = [exports.FT_REMOTE_AT_COMMAND, this.frameId];
 
   // this.destination64 should be an array of 8 integers. Append it to the payload now.
   for(var i=0; i<8; i++) {
