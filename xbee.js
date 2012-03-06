@@ -41,6 +41,9 @@ exports.FT_AT_COMMAND = 0x08;           // AT command (local)
 exports.FT_AT_RESPONSE = 0x88;          // AT response (local)
 exports.FT_REMOTE_AT_COMMAND = 0x17;    // AT command (to remote radio)
 exports.FT_REMOTE_AT_RESPONSE = 0x97;   // AT response (from remote radio)
+exports.FT_TRANSMIT_RF_DATA = 0x10;     // Transmit RF data
+exports.FT_TRANSMIT_ACKNOWLEDGED = 0x8b; // TX response
+exports.FT_RECEIVE_RF_DATA = 0x90;      // RX received
 
 // Bitmasks for I/O pins
 var digiPinsByte1 = {
@@ -202,6 +205,49 @@ RemoteATCommand.prototype.getPayload = function() {
 
 exports.RemoteATCommand = RemoteATCommand;
 
+var TransmitRFData = function() {
+  this.frameId = incrementFrameId();
+  this.broadcastRadius = 0x00;     // use maximum hops value by default
+  this.options = 0x00;             // see digi docs for more info
+}
+sys.inherits(TransmitRFData, Packet);
+
+TransmitRFData.prototype.getPayload = function() {
+  // Returns a JS array of byte values
+  // which form an API instruction to transmit RF data to a remote Xbee node.
+  // Uses .RFData to build the packet
+  // .destination64 and .destination16 are also required.
+
+  // begin with the frame type and frame ID
+  var payload = [exports.FT_TRANSMIT_RF_DATA, this.frameId];
+
+  // this.destination64 should be an array of 8 integers. Append it to the payload now.
+  for(var i=0; i<8; i++) {
+    payload.push(this.destination64[i]);
+  }
+
+  // this.destination16 should be an array of 2 integers. Append it to the payload too.
+  for(var i=0; i<2; i++) {
+    payload.push(this.destination16[i]);
+  }
+
+  // broadcastRadius and options default values are set in the constructor
+  payload.push(this.broadcastRadius);
+  payload.push(this.options);
+
+  // this.commandParameter can either be undefined (to query a register), or an array (to set an AT register)
+  if (this.RFData) {
+    for(var j=0; j<this.RFData.length; j++) {
+      payload.push(this.RFData.charCodeAt(j));
+    }
+  }
+
+  return payload;
+}
+
+exports.TransmitRFData = TransmitRFData;
+
+
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~ INCOMING XBEE PACKETS ~~~~~~~~~~~~~~~~~~~~
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -286,6 +332,21 @@ function packetToJS(packet) {
       commandData: packet.slice(15),
       bytes: packet
     }
+  } else if(packet[0] == exports.FT_RECEIVE_RF_DATA) {
+    p = {
+      type: 'RF Data',
+      remote64: {dec: packet.slice(1,9),  hex: byteArrayToHexString(packet.slice(1,9))},
+      remote16: {dec: packet.slice(9,11), hex: byteArrayToHexString(packet.slice(9,11))},
+      receiveOptions: packet[11],
+      raw_data: packet.slice(12),
+      data: "",
+      bytes: packet
+    }
+    // build ascii from raw_data
+    for(i in p.raw_data) {
+      p.data += String.fromCharCode(p.raw_data[i]);
+    }
+    return p
   } else if (packet[0] == exports.FT_DATA_SAMPLE_RX) {
     s = {
       type: 'Data Sample',
