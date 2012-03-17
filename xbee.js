@@ -76,7 +76,6 @@ XBee.prototype.configure = function() {
   };
   
   async.series(config, function(err, results) {
-    console.log(results);
     self.config = results;
     self.emit("configured", self.config);
     self.discover(function() {
