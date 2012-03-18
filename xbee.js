@@ -1,5 +1,5 @@
 var Buffer = require('buffer').Buffer;
-var sys = require('sys');
+var sys = require('util');
 
 function decimalToHex(d, padding) {
     var hex = Number(d).toString(16);
