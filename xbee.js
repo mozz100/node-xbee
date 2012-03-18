@@ -315,41 +315,42 @@ function packetToJS(packet) {
 
   var json = {
     type: undefined,
+    ft: packet[0],
     bytes: packet
   }
 
   if (packet[0]== exports.FT_AT_RESPONSE) {
-    json.type: 'AT Response';
-    json.frameId: packet[1],
-    json.command: String.fromCharCode(packet[2]) + String.fromCharCode(packet[3]), // translate bytes back to ASCII
-    json.commandStatus: (packet[4] == 0) ? 'OK' : packet[4],
-    json.commandData: packet.slice(4),
+    json.type = 'AT Response';
+    json.frameId = packet[1];
+    json.command = String.fromCharCode(packet[2]) + String.fromCharCode(packet[3]); // translate bytes back to ASCII
+    json.commandStatus = (packet[4] == 0) ? 'OK' : packet[4];
+    json.commandData = packet.slice(4);
   } else if (packet[0] == exports.FT_REMOTE_AT_RESPONSE) {
-    json.type: 'Remote AT Response',
-    json.frameId: packet[1],
-    json.remote64: {dec: packet.slice(2,10),  hex: exports.byteArrayToHexString(packet.slice(2,10))},
-    json.remote16: {dec: packet.slice(10,12), hex: exports.byteArrayToHexString(packet.slice(10,12))},
-    json.command: String.fromCharCode(packet[12]) + String.fromCharCode(packet[13]),
-    json.commandStatus: (packet[14] == 0) ? 'OK' : packet[14],
-    json.commandData: packet.slice(15),
-  } else if(packet[0] == exports.FT_RECEIVE_RF_DATA) {
-    json.type: 'RF Data',
-    json.remote64: {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))},
-    json.remote16: {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))},
-    json.receiveOptions: packet[11],
-    json.raw_data: packet.slice(12),
-    json.data: "",
+    json.type = 'Remote AT Response';
+    json.frameId = packet[1];
+    json.remote64 = {dec: packet.slice(2,10),  hex: exports.byteArrayToHexString(packet.slice(2,10))};
+    json.remote16 = {dec: packet.slice(10,12), hex: exports.byteArrayToHexString(packet.slice(10,12))};
+    json.command = String.fromCharCode(packet[12]) + String.fromCharCode(packet[13]);
+    json.commandStatus = (packet[14] == 0) ? 'OK' : packet[14];
+    json.commandData = packet.slice(15);
+  } else if (packet[0] == exports.FT_RECEIVE_RF_DATA) {
+    json.type = 'RF Data';
+    json.remote64 = {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))};
+    json.remote16 = {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))};
+    json.receiveOptions = packet[11];
+    json.raw_data = packet.slice(12);
+    json.data = "";
     for(i in json.raw_data) {
-      json.data += String.fromCharCode(json.raw_data[i]);
+      json.data += String.fromCharCode(json.raw_data[i])
     }
   } else if (packet[0] == exports.FT_DATA_SAMPLE_RX) {
-    json.type: 'Data Sample',
-    json.remote64: {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))},
-    json.remote16: {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))},
-    json.receiveOptions: packet[11],
-    json.numSamples: packet[12],     // apparently always set to 1
-    json.digitalChannelMask: packet.slice(13,15),
-    json.analogChannelMask: packet[15],
+    json.type = 'Data Sample';
+    json.remote64 = {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))};
+    json.remote16 = {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))};
+    json.receiveOptions = packet[11];
+    json.numSamples = packet[12];     // apparently always set to 1
+    json.digitalChannelMask = packet.slice(13,15);
+    json.analogChannelMask = packet[15];
     // Bit more work to do on an I/O data sample.
     // First check s.digitalChannelMask - are there any digital samples?
     if (json.digitalChannelMask[0] + json.digitalChannelMask[1] > 0) {
