@@ -1,7 +1,7 @@
 var Buffer = require('buffer').Buffer;
 var sys = require('util');
 
-function decimalToHex(d, padding) {
+exports.decimalToHex = function(d, padding) {
     var hex = Number(d).toString(16);
     padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
 
@@ -12,10 +12,10 @@ function decimalToHex(d, padding) {
     return hex;
 }
 
-function byteArrayToHexString(a) {
+exports.byteArrayToHexString = function(a) {
     var s = '';
     for(var i = 0; i < a.length; i++) {
-      s += decimalToHex(a[i]);
+      s += exports.decimalToHex(a[i]);
     }
     return s;
 }
@@ -327,15 +327,15 @@ function packetToJS(packet) {
   } else if (packet[0] == exports.FT_REMOTE_AT_RESPONSE) {
     json.type: 'Remote AT Response',
     json.frameId: packet[1],
-    json.remote64: {dec: packet.slice(2,10),  hex: byteArrayToHexString(packet.slice(2,10))},
-    json.remote16: {dec: packet.slice(10,12), hex: byteArrayToHexString(packet.slice(10,12))},
+    json.remote64: {dec: packet.slice(2,10),  hex: exports.byteArrayToHexString(packet.slice(2,10))},
+    json.remote16: {dec: packet.slice(10,12), hex: exports.byteArrayToHexString(packet.slice(10,12))},
     json.command: String.fromCharCode(packet[12]) + String.fromCharCode(packet[13]),
     json.commandStatus: (packet[14] == 0) ? 'OK' : packet[14],
     json.commandData: packet.slice(15),
   } else if(packet[0] == exports.FT_RECEIVE_RF_DATA) {
     json.type: 'RF Data',
-    json.remote64: {dec: packet.slice(1,9),  hex: byteArrayToHexString(packet.slice(1,9))},
-    json.remote16: {dec: packet.slice(9,11), hex: byteArrayToHexString(packet.slice(9,11))},
+    json.remote64: {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))},
+    json.remote16: {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))},
     json.receiveOptions: packet[11],
     json.raw_data: packet.slice(12),
     json.data: "",
@@ -344,8 +344,8 @@ function packetToJS(packet) {
     }
   } else if (packet[0] == exports.FT_DATA_SAMPLE_RX) {
     json.type: 'Data Sample',
-    json.remote64: {dec: packet.slice(1,9),  hex: byteArrayToHexString(packet.slice(1,9))},
-    json.remote16: {dec: packet.slice(9,11), hex: byteArrayToHexString(packet.slice(9,11))},
+    json.remote64: {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))},
+    json.remote16: {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))},
     json.receiveOptions: packet[11],
     json.numSamples: packet[12],     // apparently always set to 1
     json.digitalChannelMask: packet.slice(13,15),
