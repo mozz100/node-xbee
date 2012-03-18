@@ -1,13 +1,13 @@
-{   "name" :        "xbee",
-    "version" :     "0.0.4",
-    "description" : "Node talks to xbee radios through serialport",
-    "author":       "Richard Morrison <richard@rmorrison.net>",
-    "main":         "./xbee",
+{   "name" :        "xbee-svd",
+    "version" :     "0.0.1",
+    "description" : "A more high level fork of Richard Morrison's node-xbee",
+    "author":       "Jan Kolkmeier <jankolkmeier@gmail.com>",
+    "main":         "xbee.js",
     "keywords":     ["xbee", "serialport", "robots", "sensors", "automation", "control"],
-    "homepage":     "https://github.com/mozz100/node-xbee",
+    "homepage":     "https://github.com/jouz/node-xbee-svd",
     "repository": {
       "type" : "git",
-      "url" :  "git://github.com/mozz100/node-xbee.git"
+      "url" :  "git://github.com/jouz/node-xbee-svd.git"
      }
 
 }

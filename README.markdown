@@ -1,16 +1,6 @@
-This module lets you bridge the real world to Node.js.  Connect to sensors, robots, turn things on and off, take remote measurements.  In fact if you find a creative use for this stuff, let me know!  I'd be proud to hear of it being taken advantage of.
+A more high level fork of Richard Morrison's node-xbee.
 
-(made up Javascript code to get your imagination going)
-
-    frontdoor.on("open", function() {
-      if (alarm.state == "on") {
-        alarm.sound();
-        hounds.release();
-      } else {
-        lights.switchOn();
-        voice.speak("Welcome home");
-      }
-    });
+Code Example Follows
 
 Background
 ==========
@@ -90,4 +80,5 @@ See __example.js__ for a full working example (you'll need to use your own xbee 
 Licence
 -------
 
+This work is based on the works of Richard Morrison
 <a rel="license" href="http://creativecommons.org/licenses/by-sa/2.0/uk/"><img alt="Creative Commons License" style="border-width:0" src="http://i.creativecommons.org/l/by-sa/2.0/uk/88x31.png" /></a><br />This work by <span xmlns:cc="http://creativecommons.org/ns#" property="cc:attributionName">Richard Morrison</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/2.0/uk/">Creative Commons Attribution-ShareAlike 2.0 UK: England &amp; Wales License</a>.<br />Based on a work at <a xmlns:dct="http://purl.org/dc/terms/" href="https://github.com/mozz100/node-xbee" rel="dct:source">github.com</a>.
