@@ -5,9 +5,11 @@
     "main":         "xbee.js",
     "keywords":     ["xbee", "serialport", "robots", "sensors", "automation", "control"],
     "homepage":     "https://github.com/jouz/node-xbee-svd",
+    "dependencies": {
+      "serialport" : "0.7.x"
+    }
     "repository": {
       "type" : "git",
       "url" :  "git://github.com/jouz/node-xbee-svd.git"
      }
-
 }
