@@ -1,7 +1,7 @@
 var Buffer = require('buffer').Buffer;
 var sys = require('util');
 
-exports.decimalToHex = function(d, padding) {
+exports.dec2Hex = function(d, padding) {
     var hex = Number(d).toString(16);
     padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
 
@@ -12,12 +12,20 @@ exports.decimalToHex = function(d, padding) {
     return hex;
 }
 
-exports.byteArrayToHexString = function(a) {
+exports.bArr2HexStr = function(a) {
     var s = '';
-    for(var i = 0; i < a.length; i++) {
-      s += exports.decimalToHex(a[i]);
+    for(i in a) {
+      s += exports.dec2Hex(a[i]);
     }
     return s;
+}
+
+exports.bArr2Str = function(a) {
+  var s = '';
+  for(i in a) {
+    s += String.fromCharCode(a[i]);
+  }
+  return s;
 }
 
 // module-level variable for storing a frameId.
@@ -32,9 +40,37 @@ function incrementFrameId() {
   return frameId;
 }
 
-// Define some useful XBee constants
 exports.START_BYTE = 0x7e;              // start of every XBee packet
 
+exports.frameTypes = {
+  0x92 : {
+    name: "DATA_SAMPLE_RX",
+  },
+  0x08 : {
+    name: "AT_COMMAND",
+  },
+  0x88 : {
+    name: "AT_RESPONSE",
+  },
+  0x17 : {
+    name: "REMOTE_AT_COMMAND",
+  },
+  0x97 : {
+    name: "REMOTE_AT_RESPONSE",
+  },
+  0x10 : {
+    name: "TRANSMIT_RF_DATA",
+  },
+  0x8b : {
+    name: "TRANSMIT_ACKNOWLEDGED",
+  },
+  0x90 : {
+    name: "RECEIVE_RF_DATA",
+  },
+  0x95 : {
+    name: "NODE_IDENTIFICATION",
+  },
+}
 // Frame Types
 exports.FT_DATA_SAMPLE_RX = 0x92;       // I/O data sample packet received
 exports.FT_AT_COMMAND = 0x08;           // AT command (local)
@@ -45,12 +81,15 @@ exports.FT_TRANSMIT_RF_DATA = 0x10;     // Transmit RF data
 exports.FT_TRANSMIT_ACKNOWLEDGED = 0x8b; // TX response
 exports.FT_RECEIVE_RF_DATA = 0x90;      // RX received
 
+exports.FT_NODE_IDENTIFICATION = 0x95;
+
 // Bitmasks for I/O pins
 var digiPinsByte1 = {
   D10: 4,
   D11: 8,
   D12: 16
 };
+
 var digiPinsByte2 = {
   D0: 1,
   D1: 2,
@@ -210,6 +249,7 @@ var TransmitRFData = function() {
   this.broadcastRadius = 0x00;     // use maximum hops value by default
   this.options = 0x00;             // see digi docs for more info
 }
+
 sys.inherits(TransmitRFData, Packet);
 
 TransmitRFData.prototype.getPayload = function() {
@@ -239,6 +279,7 @@ TransmitRFData.prototype.getPayload = function() {
   if (this.RFData) {
     for(var j=0; j<this.RFData.length; j++) {
       payload.push(this.RFData.charCodeAt(j));
+
     }
   }
 
@@ -296,7 +337,8 @@ exports.packetParser = function () {
       // emit the packet when it's fully built.  packlen + 3 = position of final byte
       if ((packlen > 0) && (packet.length == packlen) && (packpos == packlen + 3)) {
         // translate the packet into a JS object before emitting it
-        emitter.emit("data", packetToJS(packet));
+        var json = packetToJS(packet);
+        emitter.emit(json.ft, json);
       }
 
       // there will still be a checksum byte.  Currently this is ignored
@@ -312,41 +354,69 @@ function packetToJS(packet) {
   // the array of bytes excludes the start bit and the length bits (these are not collected by the serial parser funciton)
 
   // So, the first byte in the packet is the frame type identifier.
-
   var json = {
-    type: undefined,
-    ft: packet[0],
-    bytes: packet
-  }
+    ft: exports.frameTypes.hasOwnProperty(packet[0]) ? exports.frameTypes[packet[0]].name : packet[0]
+  };
 
-  if (packet[0]== exports.FT_AT_RESPONSE) {
-    json.type = 'AT Response';
+  if (packet[0] == exports.FT_NODE_IDENTIFICATION) {
+    json.sender64 = {dec: packet.slice(1,9),  hex: exports.bArr2HexStr(packet.slice(1,9))};
+    json.sender16 = {dec: packet.slice(9,11), hex: exports.bArr2HexStr(packet.slice(9,11))};
+    json.recieveOptions = packet[11];
+    json.remote16 = {dec: packet.slice(12,14), hex: exports.bArr2HexStr(packet.slice(12,14))};
+    json.remote64 = {dec: packet.slice(14,22),  hex: exports.bArr2HexStr(packet.slice(14,22))};
+    json.nodeIdentifier = "";
+    var ni_length = 0;
+    while (packet[22+ni_length] != 0x00) {
+      json.nodeIdentifier += String.fromCharCode(packet[22+ni_length]);
+      ni_length += 1;
+    }
+    var offset = 22+ni_length+1;
+    json.remoteParent16 = {dec: packet.slice(offset,offset+2),  hex: exports.bArr2HexStr(packet.slice(offset,offset+2))};
+    json.deviceType = packet[offset+2];
+    json.sourceEvent = packet[offset+3];
+    // skip digi  application profile & manufacturer id
+    json.payload = packet.splice(offset);
+  } else if (packet[0] == exports.FT_AT_RESPONSE) {
     json.frameId = packet[1];
-    json.command = String.fromCharCode(packet[2]) + String.fromCharCode(packet[3]); // translate bytes back to ASCII
+    json.command = String.fromCharCode(packet[2]) + String.fromCharCode(packet[3]);
     json.commandStatus = (packet[4] == 0) ? 'OK' : packet[4];
-    json.commandData = packet.slice(4);
+    if (json.command == 'ND') {
+      json.node = {};
+      json.node.remote16 = {dec: packet.slice(5,7), hex: exports.bArr2HexStr(packet.slice(5,7))};
+      json.node.remote64 = {dec: packet.slice(7,15),  hex: exports.bArr2HexStr(packet.slice(7,15))};
+      json.node.nodeIdentifier = "";
+      var ni_length = 0;
+      while (packet[15+ni_length] != 0x00) {
+        json.node.nodeIdentifier += String.fromCharCode(packet[15+ni_length]);
+        ni_length += 1;
+      }
+      var offset = 15+ni_length+1;
+      json.node.remoteParent16 = {dec: packet.slice(offset,offset+2),  hex: exports.bArr2HexStr(packet.slice(offset,offset+2))};
+      json.node.deviceType = packet[offset+2];
+      json.node.sourceEvent = packet[offset+3];
+      // skip status, digi application profile & manufacturer id
+    } else {
+      json.commandData = packet.slice(5);
+    }
   } else if (packet[0] == exports.FT_REMOTE_AT_RESPONSE) {
-    json.type = 'Remote AT Response';
     json.frameId = packet[1];
-    json.remote64 = {dec: packet.slice(2,10),  hex: exports.byteArrayToHexString(packet.slice(2,10))};
-    json.remote16 = {dec: packet.slice(10,12), hex: exports.byteArrayToHexString(packet.slice(10,12))};
+    json.remote64 = {dec: packet.slice(2,10),  hex: exports.bArr2HexStr(packet.slice(2,10))};
+    json.remote16 = {dec: packet.slice(10,12), hex: exports.bArr2HexStr(packet.slice(10,12))};
     json.command = String.fromCharCode(packet[12]) + String.fromCharCode(packet[13]);
     json.commandStatus = (packet[14] == 0) ? 'OK' : packet[14];
     json.commandData = packet.slice(15);
   } else if (packet[0] == exports.FT_RECEIVE_RF_DATA) {
-    json.type = 'RF Data';
-    json.remote64 = {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))};
-    json.remote16 = {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))};
+    json.remote64 = {dec: packet.slice(1,9),  hex: exports.bArr2HexStr(packet.slice(1,9))};
+    json.remote16 = {dec: packet.slice(9,11), hex: exports.bArr2HexStr(packet.slice(9,11))};
     json.receiveOptions = packet[11];
-    json.raw_data = packet.slice(12);
     json.data = "";
-    for(i in json.raw_data) {
-      json.data += String.fromCharCode(json.raw_data[i])
+    var raw_data = packet.slice(12);
+    for(i in raw_data) {
+      json.data += String.fromCharCode(raw_data[i])
     }
   } else if (packet[0] == exports.FT_DATA_SAMPLE_RX) {
-    json.type = 'Data Sample';
-    json.remote64 = {dec: packet.slice(1,9),  hex: exports.byteArrayToHexString(packet.slice(1,9))};
-    json.remote16 = {dec: packet.slice(9,11), hex: exports.byteArrayToHexString(packet.slice(9,11))};
+    json.remote64 = {dec: packet.slice(1,9),  hex: exports.bArr2HexStr(packet.slice(1,9))};
+    json.remote16 = {dec: packet.slice(9,11), hex: exports.bArr2HexStr(packet.slice(9,11))};
     json.receiveOptions = packet[11];
     json.numSamples = packet[12];     // apparently always set to 1
     json.digitalChannelMask = packet.slice(13,15);
@@ -403,6 +473,9 @@ function packetToJS(packet) {
         }
       }
     }
+  } else {
+    json.payload = packet.slice(1);
   }
-  return packet;  
+
+  return json;  
 }
