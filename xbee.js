@@ -10,19 +10,20 @@ function XBee(port) {
   this.nodes = {};
 
   this.serial = new serialport.SerialPort(port, { 
-    parser: api.packetParser()
+    parser: api.packetBuilder()
   });
 
   var self = this;
 
-  this._onNodeDiscovery = function(node) {
-    // RemoveAllListeners??ß
+  this._onNodeDiscovery = function(data) {
+    var node = data.node;
     if (self.nodes[node.remote64.hex]) {
+      // RemoveAllListeners??ß
       self.nodes[node.remote64.hex].removeAllListeners();
     } else {
       self.nodes[node.remote64.hex] = new Node(self, node);
     }
-    this.emit("node", self.nodes[node.remote64.hex]);
+    self.emit("node", self.nodes[node.remote64.hex]);
   }
 
   // On AT Response
@@ -35,8 +36,8 @@ function XBee(port) {
     }
   }
 
+  // Remove this bullcrap, filter by frameid instead!
   this._onATResponse_FilterND = function(res) {
-    if (res.command == "ND") self._onNodeDiscovery(res.node);
   }
 
   this._onMessage = function(data) {
@@ -62,7 +63,7 @@ XBee.prototype.configure = function() {
     f = typeof f !== 'undefined' ? f : function(a){return a};
     return function(cb) {
       self._ATCB(command, function(data) {
-        cb(!data.commandStatus, f(data.commandData)); 
+        cb(!(data.commandStatus==0x00), f(data.commandData)); 
       });
     }
   }
@@ -79,16 +80,18 @@ XBee.prototype.configure = function() {
     self.config = results;
     self.emit("configured", self.config);
     self.discover(function() {
-      console.log("Discovery Over");
+      // Discovery Over
     });
   });
 }
 
 XBee.prototype.discover = function(cb) {
-  this._AT('ND');
-  this.serial.on("AT_RESPONSE", this._onATResponse_FilterND);
+  var frameId = this._AT('ND');
+  var self = this;
+  self.serial.on("AT_RESPONSE_"+frameId, self._onNodeDiscovery);
   setTimeout(function() {
     cb(); 
+    self.serial.removeAllListeners("AT_RESPONSE_"+frameId);
   }, this.config.nodeDiscoveryTime);
 }
 
@@ -116,12 +119,8 @@ XBee.prototype._ATCB = function(cmd, val, cb) {
     cb = val;
     val = undefined;
   }
-  this._AT(cmd, val);
-  this.serial.on("AT_RESPONSE", function(res) {
-    if (res.command == cmd) {
-      cb(res);
-    }
-  });
+  var frameId = this._AT(cmd, val);
+  this.serial.once("AT_RESPONSE_"+frameId, cb);
 }
 
 XBee.prototype._AT = function(cmd, val) {
@@ -129,6 +128,7 @@ XBee.prototype._AT = function(cmd, val) {
   frame.setCommand(cmd);
   frame.commandParameter = val;
   this.serial.write(frame.getBytes());
+  return frame.frameId;
 }
 
 XBee.prototype._remoteAT = function(cmd, remote64, remote16, val) {
@@ -143,6 +143,7 @@ XBee.prototype._remoteAT = function(cmd, remote64, remote16, val) {
     frame.destination16 = remote16.dec;
   }
   this.serial.write(frame.getBytes());
+  return frame.frameId;
 }
 
 exports.XBee = XBee;
