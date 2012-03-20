@@ -1,6 +1,8 @@
 var Buffer = require('buffer').Buffer;
 var sys = require('util');
 
+// TODO: CHAIN PARSING
+
 exports.dec2Hex = function(d, padding) {
     var hex = Number(d).toString(16);
     padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
@@ -338,6 +340,7 @@ exports.packetParser = function () {
       if ((packlen > 0) && (packet.length == packlen) && (packpos == packlen + 3)) {
         // translate the packet into a JS object before emitting it
         var json = packetToJS(packet);
+        console.log("F: "+json.ft);
         emitter.emit(json.ft, json);
       }
 
@@ -364,10 +367,10 @@ function packetToJS(packet) {
     json.recieveOptions = packet[11];
     json.remote16 = {dec: packet.slice(12,14), hex: exports.bArr2HexStr(packet.slice(12,14))};
     json.remote64 = {dec: packet.slice(14,22),  hex: exports.bArr2HexStr(packet.slice(14,22))};
-    json.nodeIdentifier = "";
+    json.id = "";
     var ni_length = 0;
     while (packet[22+ni_length] != 0x00) {
-      json.nodeIdentifier += String.fromCharCode(packet[22+ni_length]);
+      json.id += String.fromCharCode(packet[22+ni_length]);
       ni_length += 1;
     }
     var offset = 22+ni_length+1;
@@ -384,16 +387,17 @@ function packetToJS(packet) {
       json.node = {};
       json.node.remote16 = {dec: packet.slice(5,7), hex: exports.bArr2HexStr(packet.slice(5,7))};
       json.node.remote64 = {dec: packet.slice(7,15),  hex: exports.bArr2HexStr(packet.slice(7,15))};
-      json.node.nodeIdentifier = "";
+      json.node.id = "";
       var ni_length = 0;
       while (packet[15+ni_length] != 0x00) {
-        json.node.nodeIdentifier += String.fromCharCode(packet[15+ni_length]);
+        json.node.id += String.fromCharCode(packet[15+ni_length]);
         ni_length += 1;
       }
       var offset = 15+ni_length+1;
       json.node.remoteParent16 = {dec: packet.slice(offset,offset+2),  hex: exports.bArr2HexStr(packet.slice(offset,offset+2))};
       json.node.deviceType = packet[offset+2];
       json.node.sourceEvent = packet[offset+3];
+      json.status = packet[offset+4];
       // skip status, digi application profile & manufacturer id
     } else {
       json.commandData = packet.slice(5);
