@@ -45,12 +45,32 @@ exports.START_BYTE = 0x7e;              // start of every XBee packet
 exports.FT_DATA_SAMPLE_RX = 0x92;       // I/O data sample packet received
 exports.FT_AT_COMMAND = 0x08;           // AT command (local)
 exports.FT_AT_RESPONSE = 0x88;          // AT response (local)
+exports.FT_TX_TRANSMIT_STATUS = 0x8b;   // Status response of transmission
 exports.FT_REMOTE_AT_COMMAND = 0x17;    // AT command (to remote radio)
 exports.FT_REMOTE_AT_RESPONSE = 0x97;   // AT response (from remote radio)
 exports.FT_TRANSMIT_RF_DATA = 0x10;     // Transmit RF data
 exports.FT_TRANSMIT_ACKNOWLEDGED = 0x8b; // TX response
 exports.FT_RECEIVE_RF_DATA = 0x90;      // RX received
 exports.FT_NODE_IDENTIFICATION = 0x95;
+
+exports.DELIVERY_STATES = {
+  0x00: "Success",
+  0x02: "CCA Failure",
+  0x15: "Invalid destination endpoint",
+  0x21: "Network ACK Failure",
+  0x22: "Not Joined to Network",
+  0x23: "Self-addressed",
+  0x24: "Address Not Found",
+  0x25: "Route Not Found",
+  0x74: "Data payload too large"
+};
+
+exports.DISCOVERY_STATES = {
+  0x00: "No Discovery Overhead",
+  0x01: "Address Discovery",
+  0x02: "Route Discovery",
+  0x03: "Address and Route Discovery"
+};
 
 // Bitmasks for I/O pins
 var digiPinsByte1 = {
@@ -287,7 +307,7 @@ exports.packetBuilder = function () {
         var json = parser.parse();
         //console.log("P: "+util.inspect(json));
         var event = json.type;
-        if (json.ft === exports.FT_AT_RESPONSE || json.ft === exports.FT_AT_REMOTE_RESPONSE) {
+        if (json.ft === exports.FT_TX_TRANSMIT_STATUS || json.ft === exports.FT_AT_RESPONSE || json.ft === exports.FT_AT_REMOTE_RESPONSE) {
           event += "_"+json.frameId;
         }
         console.log("FRAME: %s (%s). EVT: %s", json.ft, json.type, event);
@@ -377,6 +397,17 @@ PacketParser.prototype.knownFrames = {
         .readByte('sourceEvent');
     }
   },
+  0x8b: {
+    type: "TX_TRANSMIT_STATUS",
+    parse: function(parser) {
+      parser
+        .readByte('frameId')
+        .readAddr16('remote16')
+        .readByte('transmitRetryCount')
+        .readByte('deliveryStatus')
+        .readByte('discoveryStatus')
+    }
+  },
   0x88: {
     type: "AT_RESPONSE",
     parse: function(parser) {
@@ -416,8 +447,8 @@ PacketParser.prototype.knownFrames = {
     type: "RECEIVE_RF_DATA",
     parse: function(parser) {
       parser
-        .readAddr16('remote16')
         .readAddr64('remote64')
+        .readAddr16('remote16')
         .readByte('receiveOptions')
         .collectPayload('rawData');
     }
