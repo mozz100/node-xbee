@@ -31,8 +31,8 @@ function XBee(port) {
   // On AT Response
   this._onRemoteATResponse = function(res) {
     // On Node Discovery Packet, emit new Node
-    if (self.nodes[res.remote64.dec]) {
-      self.nodes[res.remote64.dec]._onRemoteATResponse(res);
+    if (self.nodes[res.remote64.hex]) {
+      self.nodes[res.remote64.hex]._onRemoteATResponse(res);
     } else {
       console.log("Unhandled REMOTE_AT_RESPONSE: %s", util.inspect(res));
     }
@@ -112,7 +112,7 @@ XBee.prototype.broadcast = function(data) {
   this._send(data, remote64, remote16);
 }
 
-XBee._send = function(data, remote64, remote16) {
+XBee.prototype._send = function(data, remote64, remote16) {
   var frame = new api.TransmitRFData();
   if (typeof remote64.dec === 'undefined') {
     frame.destination64 = remote64;
@@ -123,6 +123,7 @@ XBee._send = function(data, remote64, remote16) {
   }
   frame.RFData = data;
   this.serial.write(frame.getBytes());
+  return frame.frameId;
 }
 
 XBee.prototype._ATCB = function(cmd, val, cb) {
@@ -169,8 +170,23 @@ function Node(xbee, params) {
 
 util.inherits(Node, EventEmitter);
 
-Node.prototype.send = function(data) {
-  this.xbee._send(data, this.remote64, this.remote16);
+Node.prototype.send = function(data, cb) {
+  var frameId = this.xbee._send(data, this.remote64, this.remote16);
+  if (typeof cb === 'function') {
+    this.xbee.serial.once("TX_TRANSMIT_STATUS_"+frameId, function(data) {
+      var error = false;
+      if (data.deliveryStatus != 0x00) {
+        error = data;
+        error.msg = api.DELIVERY_STATES[data.deliveryStatus];
+      }
+      cb(error);
+    });
+  }
+}
+
+Node.prototype._onData = function(data) {
+  // Send the whole data object, or just the parsed msg?
+  this.emit('data', api.bArr2Str(data.rawData));
 }
 
 Node.prototype._AT = function(cmd, val) {
