@@ -1,5 +1,7 @@
 var util = require('util');
-var XBee = require('./xbee').XBee;
+var XBee = require('xbee-svd').XBee;
+
+// Replace with your xbee's UART location
 var xbee = new XBee('/dev/ttyO1');
 
 xbee.on("configured", function(config) {

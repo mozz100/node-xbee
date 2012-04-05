@@ -6,9 +6,11 @@ var async = require('async');
 
 function XBee(port) {
   EventEmitter.call(this);
-
+  
+  // Current nodes
   this.nodes = {};
 
+  // Serial connection to the XBee
   this.serial = new serialport.SerialPort(port, { 
     parser: api.packetBuilder()
   });
@@ -59,7 +61,11 @@ util.inherits(XBee, EventEmitter);
 
 XBee.prototype.configure = function() {
   var self = this;
-  var QF = function(command, f) {
+
+  // Returns a function that initiates an AT command to
+  // query a configuration parameter's value. 
+  // To be passed to an async.parallel.
+  var QF = function(command, f) { // Format the result using f
     f = typeof f !== 'undefined' ? f : function(a){return a};
     return function(cb) {
       self._ATCB(command, function(data) {
@@ -76,7 +82,8 @@ XBee.prototype.configure = function() {
     nodeDiscoveryTime: QF('NT', function(a) { return parseInt(a[0])*100; })
   };
   
-  async.series(config, function(err, results) {
+  // Using async to start discovery only when all parameters have been read.
+  async.parallel(config, function(err, results) {
     self.config = results;
     self.emit("configured", self.config);
     self.discover(function() {
@@ -85,10 +92,14 @@ XBee.prototype.configure = function() {
   });
 }
 
+// Run network discovery. Associated nodes can report in
+// for config.nodeDiscoveryTime ms.
 XBee.prototype.discover = function(cb) {
   var frameId = this._AT('ND');
   var self = this;
+  // Whenever a node reports in, treat him as rejoined.
   self.serial.on("AT_RESPONSE_"+frameId, self._onNodeDiscovery);
+  // Wait for nodeDiscoveryTime ms before calling back
   setTimeout(function() {
     cb(); 
     self.serial.removeAllListeners("AT_RESPONSE_"+frameId);
@@ -156,6 +167,7 @@ function Node(xbee, params) {
   this.remote64 = params.remote64;
 }
 
+util.inherits(Node, EventEmitter);
 
 Node.prototype.send = function(data) {
   this.xbee._send(data, this.remote64, this.remote16);
@@ -169,4 +181,3 @@ Node.prototype._onATResponse = function(res) {
   console.log("Node %s got AT_RESPONSE: %s", util.inspect(res));
 }
 
-util.inherits(Node, EventEmitter);

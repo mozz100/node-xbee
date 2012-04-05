@@ -3,12 +3,12 @@
     "description" : "A more high level fork of Richard Morrison's node-xbee",
     "author":       "Jan Kolkmeier <jankolkmeier@gmail.com>",
     "main":         "xbee.js",
-    "keywords":     ["xbee", "serialport", "robots", "sensors", "automation", "control"],
+    "keywords":     [ "xbee", "serialport", "robots", "sensors", "automation", "control" ],
     "homepage":     "https://github.com/jouz/node-xbee-svd",
     "dependencies": {
-      "serialport" : "0.7.x"
+      "serialport" : "0.7.x",
       "async" : "0.1.x"
-    }
+    },
     "repository": {
       "type" : "git",
       "url" :  "git://github.com/jouz/node-xbee-svd.git"
