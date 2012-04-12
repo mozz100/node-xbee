@@ -4,14 +4,19 @@ var api = require("./xbee-api");
 var serialport = require("serialport");
 var async = require('async');
 
-function XBee(port) {
+function XBee(port, data_parser) {
   EventEmitter.call(this);
-  
+
+  if (typeof data_parser !== 'function') {
+    console.log("loading simple parser");
+    data_parser = require("./simple-parser"); 
+  }
   // Current nodes
   this.nodes = {};
 
   // Serial connection to the XBee
   this.serial = new serialport.SerialPort(port, { 
+    baudrate: 57600,
     parser: api.packetBuilder()
   });
 
@@ -23,7 +28,7 @@ function XBee(port) {
       // RemoveAllListeners??ß
       self.nodes[node.remote64.hex].removeAllListeners();
     } else {
-      self.nodes[node.remote64.hex] = new Node(self, node);
+      self.nodes[node.remote64.hex] = new Node(self, node, data_parser);
     }
     self.emit("node", self.nodes[node.remote64.hex]);
   }
@@ -38,12 +43,9 @@ function XBee(port) {
     }
   }
 
-  // Remove this bullcrap, filter by frameid instead!
-  this._onATResponse_FilterND = function(res) {
-  }
-
   this._onMessage = function(data) {
     if (self.nodes[data.remote64.hex]) {
+      //console.log("Data for %s", data.remote64.hex);
       self.nodes[data.remote64.hex]._onData(data);
     } else {
       console.log("ERROR: Data from unknown node!");
@@ -87,7 +89,7 @@ XBee.prototype.configure = function() {
     self.config = results;
     self.emit("configured", self.config);
     self.discover(function() {
-      // Discovery Over
+      console.log("=======================");
     });
   });
 }
@@ -122,6 +124,7 @@ XBee.prototype._send = function(data, remote64, remote16) {
     frame.destination16 = remote16.dec;
   }
   frame.RFData = data;
+  console.log(">>OUT: RAW:[%s]", data);
   this.serial.write(frame.getBytes());
   return frame.frameId;
 }
@@ -160,14 +163,15 @@ XBee.prototype._remoteAT = function(cmd, remote64, remote16, val) {
 
 exports.XBee = XBee;
 
-function Node(xbee, params) {
+function Node(xbee, params, data_parser) {
   EventEmitter.call(this);
   this.xbee = xbee;
   this.id = params.id;
   this.remote16 = params.remote16;
   this.remote64 = params.remote64;
+  this.buffer = "";
+  this.parser = data_parser(this);
 }
-
 util.inherits(Node, EventEmitter);
 
 Node.prototype.send = function(data, cb) {
@@ -186,7 +190,7 @@ Node.prototype.send = function(data, cb) {
 
 Node.prototype._onData = function(data) {
   // Send the whole data object, or just the parsed msg?
-  this.emit('data', api.bArr2Str(data.rawData));
+  this.parser.parse(api.bArr2Str(data.rawData));
 }
 
 Node.prototype._AT = function(cmd, val) {

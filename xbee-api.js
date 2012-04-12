@@ -261,7 +261,6 @@ TransmitRFData.prototype.getPayload = function() {
   payload.push(this.broadcastRadius);
   payload.push(this.options);
 
-  // this.commandParameter can either be undefined (to query a register), or an array (to set an AT register)
   if (this.RFData) {
     for(var j=0; j<this.RFData.length; j++) {
       payload.push(this.RFData.charCodeAt(j));
@@ -279,6 +278,8 @@ exports.packetBuilder = function () {
   var packet = [];   // incoming data buffer saved in closure as a JS array of integers called 'packet'
   var packpos = 999; // this variable is used to remember at which position we are up to within the overall packet
   var packlen = 0;   // used to remember the length of the current packet. 
+  var running_total = 0;
+  var checksum = -1;
 
   return function (emitter, buffer) {
     // Collecting data. 
@@ -290,28 +291,41 @@ exports.packetBuilder = function () {
       if (b == exports.START_BYTE) {
         packpos = 0;
         packlen = 0;
+        running_total = 0;
+        checksum = -1;
         packet = [];
       }
 
       if (packpos == 1) packlen += b << 8; // most significant bit of the length
       if (packpos == 2) packlen += b;   // least significant bit of the length
 
-      if ((packlen > 0) && (packpos > 2) && (packet.length < packlen)) {
-        packet.push(b);
+      if ((packlen > 0) && (packpos > 2)) {
+        if (packet.length < packlen) {
+          packet.push(b);
+          running_total += b;
+        } else {
+          checksum = b;
+        }
       }
+
 
       // Packet is complete. Parse & Emit
       if ((packlen > 0) && (packet.length == packlen) && (packpos == packlen + 3)) {
         // There will still be a checksum byte.  Currently this is ignored
-        var parser = new PacketParser(packet)
-        var json = parser.parse();
-        //console.log("P: "+util.inspect(json));
-        var event = json.type;
-        if (json.ft === exports.FT_TX_TRANSMIT_STATUS || json.ft === exports.FT_AT_RESPONSE || json.ft === exports.FT_AT_REMOTE_RESPONSE) {
-          event += "_"+json.frameId;
+        if (!checksum === 255 - (running_total % 256)) {
+          console.log("CHECKSUM_MISMATCH"); 
+        } else {
+          var parser = new PacketParser(packet)
+          var json = parser.parse();
+          //console.log("P: "+util.inspect(json));
+          var event = json.type;
+          if (json.ft === exports.FT_TX_TRANSMIT_STATUS || json.ft === exports.FT_AT_RESPONSE || json.ft === exports.FT_AT_REMOTE_RESPONSE) {
+            event += "_"+json.frameId;
+          }
+          if (json.type === "UNKNOWN")
+            console.log("FRAME: %s (%s). EVT: %s RAW:[%s]", json.ft, json.type, event, exports.bArr2Str(json.rawData));
+          emitter.emit(event, json);
         }
-        console.log("FRAME: %s (%s). EVT: %s", json.ft, json.type, event);
-        emitter.emit(event, json);
       }
     }
   };
