@@ -24,13 +24,15 @@ function XBee(port, data_parser) {
 
   this._onNodeDiscovery = function(data) {
     var node = data.node;
-    if (self.nodes[node.remote64.hex]) {
-      // RemoveAllListeners??ß
-      self.nodes[node.remote64.hex].removeAllListeners();
-    } else {
+    if (!self.nodes[node.remote64.hex]) {
       self.nodes[node.remote64.hex] = new Node(self, node, data_parser);
+      self.emit("node", self.nodes[node.remote64.hex]);
+    } else {
+      self.nodes[node.remote64.hex].emit("reconnect");
+      // RemoveAllListeners??ß
+      // self.nodes[node.remote64.hex].removeAllListeners();
+      //
     }
-    self.emit("node", self.nodes[node.remote64.hex]);
   }
 
   // On AT Response
@@ -124,7 +126,6 @@ XBee.prototype._send = function(data, remote64, remote16) {
     frame.destination16 = remote16.dec;
   }
   frame.RFData = data;
-  console.log(">>OUT: RAW:[%s]", data);
   this.serial.write(frame.getBytes());
   return frame.frameId;
 }
@@ -201,3 +202,4 @@ Node.prototype._onATResponse = function(res) {
   console.log("Node %s got AT_RESPONSE: %s", util.inspect(res));
 }
 
+exports.Node = Node;
