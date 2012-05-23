@@ -52,7 +52,7 @@ I can also use this library to send remote commands and query remote xbee module
 Installation
 ============
 
-    npm install xbee-svd
+    npm install svd-xbee
 
 Licence
 =======
