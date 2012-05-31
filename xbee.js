@@ -87,7 +87,7 @@ XBee.prototype.configure = function() {
     id:         QF('NI', api.bArr2Str),
     sourceLow:  QF('SL', api.bArr2HexStr),
     sourceHigh: QF('SH', api.bArr2HexStr),
-    nodeDiscoveryTime: QF('NT', function(a) { return parseInt(a[0])*100; })
+    nodeDiscoveryTime: QF('NT', function(a) { return 100 * api.bArr2Dec(a); })
   };
   
   // Using async to start discovery only when all parameters have been read.
