@@ -28,6 +28,17 @@ exports.bArr2Str = function(a) {
   return s;
 }
 
+exports.bArr2Dec = function(a) {
+  // given a byte array like [3,21], convert to a decimal value.
+  // e.g. [3,21] --> 3 * 256 + 21 = 789
+  var r = 0;
+  for(var i = 0; i < a.length; i++) {
+    var power = a.length - i - 1;
+    r += a[i] * Math.pow(256,power);
+  }
+  return r
+}
+
 // module-level variable for storing a frameId.
 // Gets incremented by 1 each time it's used, so that you can
 // tell which responses relate to which XBee commands
