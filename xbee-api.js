@@ -486,7 +486,7 @@ PacketParser.prototype.knownFrames = {
         .readAddr16('remote16')
         .readByte('receiveOptions')
         .readByte('numSamples')
-        .readByte('digitalChanelMask', 2)
+        .readByte('digitalChannelMask', 2)
         .readByte('analogChannelMask')
       if (parser.json.digitalChannelMask[0] + parser.json.digitalChannelMask[1] > 0)
         parser.readByte('digitalSamples',2);
