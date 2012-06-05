@@ -58,9 +58,18 @@ function XBee(options, data_parser) {
     }
   }
 
+  this._onDataSampleRx = function(data) {
+    if (self.nodes[data.remote64.hex]) {
+      self.nodes[data.remote64.hex]._onDataSampleRx(data);
+    } else {
+      console.log("ERROR: Data sample from unknown node!");
+    }
+  }
+
   this.serial.on("REMOTE_AT_RESPONSE", this._onRemoteATResponse);
   this.serial.on("NODE_IDENTIFICATION", this._onNodeDiscovery);
   this.serial.on("RECEIVE_RF_DATA", this._onMessage);
+  this.serial.on("DATA_SAMPLE_RX", this._onDataSampleRx);
 
   this.configure();
 }
@@ -204,6 +213,10 @@ Node.prototype._AT = function(cmd, val) {
 
 Node.prototype._onATResponse = function(res) {
   console.log("Node %s got AT_RESPONSE: %s", util.inspect(res));
+}
+
+Node.prototype._onDataSampleRx = function(res) {
+  this.emit('data_sample', res);  
 }
 
 exports.Node = Node;
