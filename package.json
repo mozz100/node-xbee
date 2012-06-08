@@ -6,7 +6,7 @@
     "keywords":     [ "xbee", "serialport", "robots", "sensors", "automation", "control" ],
     "homepage":     "https://github.com/jouz/node-xbee-svd",
     "dependencies": {
-      "serialport" : "0.7.x",
+      "serialport2" : "0.0.x",
       "async" : "0.1.x"
     },
     "repository": {

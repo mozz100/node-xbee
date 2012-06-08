@@ -1,7 +1,7 @@
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var api = require("./xbee-api");
-var serialport = require("serialport");
+var serialport = require("serialport2");
 var async = require('async');
 
 function XBee(options, data_parser) { 
@@ -20,8 +20,11 @@ function XBee(options, data_parser) {
 
   // Serial connection to the XBee
   this.serial = new serialport.SerialPort(options.port, { 
-    baudrate: options.baudrate || 57600,
+    baudRate: options.baudrate || 57600,
     parser: api.packetBuilder()
+  });
+
+  serial.on("data", function(data) {
   });
 
   var self = this;
