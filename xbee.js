@@ -2,10 +2,12 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var api = require("./xbee-api");
 var serialport = require("serialport2");
+//var serialport = require("serialport");
 var async = require('async');
 
 function XBee(options, data_parser) { 
   EventEmitter.call(this);
+  var self = this;
 
   if (typeof options === 'string') {
     options = {port: options};
@@ -18,16 +20,25 @@ function XBee(options, data_parser) {
   // Current nodes
   this.nodes = {};
 
+  var packetBuilder = api.packetBuilder();
+
   // Serial connection to the XBee
-  this.serial = new serialport.SerialPort(options.port, { 
+  this.serial = new serialport.SerialPort();
+
+  this.serial.open(options.port, { 
     baudRate: options.baudrate || 57600,
-    parser: api.packetBuilder()
+    dataBits: 8,
+    parity: 'none',
+    stopBits: 1
+  }, function(err) {
+    if (err) console.log("ERROR: "+err);
+    else self.configure();
   });
 
-  serial.on("data", function(data) {
+  this.serial.on("data", function(buffer) {
+    //console.log(">"+buffer+"<");
+    packetBuilder(this, buffer);
   });
-
-  var self = this;
 
   this._onNodeDiscovery = function(data) {
     var node = data.node;
@@ -73,8 +84,6 @@ function XBee(options, data_parser) {
   this.serial.on("NODE_IDENTIFICATION", this._onNodeDiscovery);
   this.serial.on("RECEIVE_RF_DATA", this._onMessage);
   this.serial.on("DATA_SAMPLE_RX", this._onDataSampleRx);
-
-  this.configure();
 }
 
 util.inherits(XBee, EventEmitter);
@@ -159,6 +168,7 @@ XBee.prototype._AT = function(cmd, val) {
   var frame = new api.ATCommand();
   frame.setCommand(cmd);
   frame.commandParameter = val;
+  console.log(cmd+":");
   this.serial.write(frame.getBytes());
   return frame.frameId;
 }

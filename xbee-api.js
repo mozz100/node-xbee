@@ -149,8 +149,19 @@ Packet.prototype.getBytes = function() {
 
     // finally append the checksum byte and return the packet as a JS array
     packetdata.push(checksum);
-    
-    return packetdata;
+
+
+    var string = "";
+    for (i in packetdata) {
+      string += String.fromCharCode(packetdata[i]);
+    }
+
+    var res = new Buffer(packetdata);
+
+    //console.log(packetdata);
+    //console.log(util.inspect(res));
+
+    return res;
 }
 
 Packet.prototype.getPayload = function() {
