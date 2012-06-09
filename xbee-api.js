@@ -1,6 +1,9 @@
 var Buffer = require('buffer').Buffer;
 var util = require('util');
 
+var C = exports.Constants = require('./constants.js');
+exports = module.exports;
+
 exports.dec2Hex = function(d, padding) {
     var hex = Number(d).toString(16);
     padding = typeof (padding) === "undefined" || padding === null ? padding = 2 : padding;
@@ -51,64 +54,6 @@ function incrementFrameId() {
   return frameId;
 }
 
-exports.START_BYTE = 0x7e;              // start of every XBee packet
-
-exports.FT_DATA_SAMPLE_RX = 0x92;       // I/O data sample packet received
-exports.FT_AT_COMMAND = 0x08;           // AT command (local)
-exports.FT_AT_RESPONSE = 0x88;          // AT response (local)
-exports.FT_TX_TRANSMIT_STATUS = 0x8b;   // Status response of transmission
-exports.FT_REMOTE_AT_COMMAND = 0x17;    // AT command (to remote radio)
-exports.FT_REMOTE_AT_RESPONSE = 0x97;   // AT response (from remote radio)
-exports.FT_TRANSMIT_RF_DATA = 0x10;     // Transmit RF data
-exports.FT_TRANSMIT_ACKNOWLEDGED = 0x8b; // TX response
-exports.FT_RECEIVE_RF_DATA = 0x90;      // RX received
-exports.FT_NODE_IDENTIFICATION = 0x95;
-
-exports.DELIVERY_STATES = {
-  0x00: "Success",
-  0x02: "CCA Failure",
-  0x15: "Invalid destination endpoint",
-  0x21: "Network ACK Failure",
-  0x22: "Not Joined to Network",
-  0x23: "Self-addressed",
-  0x24: "Address Not Found",
-  0x25: "Route Not Found",
-  0x74: "Data payload too large"
-};
-
-exports.DISCOVERY_STATES = {
-  0x00: "No Discovery Overhead",
-  0x01: "Address Discovery",
-  0x02: "Route Discovery",
-  0x03: "Address and Route Discovery"
-};
-
-// Bitmasks for I/O pins
-var digiPinsByte1 = {
-  D10: 4,
-  D11: 8,
-  D12: 16
-};
-
-var digiPinsByte2 = {
-  D0: 1,
-  D1: 2,
-  D2: 4,
-  D3: 8,
-  D4: 16,
-  D5: 32,
-  D6: 64,
-  D7: 128
-};
-
-var analogPins = {
-  A0: 1,
-  A1: 2,
-  A2: 4,
-  A3: 8,
-  supply: 128
-};
-
 // constructor for an outgoing Packet.
 var Packet = function() {
   this.frameId = incrementFrameId();
@@ -117,7 +62,7 @@ var Packet = function() {
 // call getBytes to get a JS array of byte values, ready to send down the serial port
 Packet.prototype.getBytes = function() {
     // build a JS array to hold the bytes
-    var packetdata = [exports.START_BYTE];
+    var packetdata = [C.START_BYTE];
     
     // calculate the length bytes.  First, get the entire payload by calling the internal function
     var payload = this.getPayload();
@@ -189,7 +134,7 @@ ATCommand.prototype.getPayload = function() {
   // Uses command0, command1 and commandParameter to build the payload.
 
   // begin with the frame type and frame ID
-  var payload = [exports.FT_AT_COMMAND, this.frameId];
+  var payload = [C.FRAME_TYPE.AT_COMMAND, this.frameId];
 
   // add two bytes to identify which AT command is being used
   payload.push(this.command0);
@@ -221,7 +166,7 @@ RemoteATCommand.prototype.getPayload = function() {
   // remoteCommandOptions, destination64 and destination16 are also used.
 
   // begin with the frame type and frame ID
-  var payload = [exports.FT_REMOTE_AT_COMMAND, this.frameId];
+  var payload = [C.FRAME_TYPE.REMOTE_COMMAND_REQUEST, this.frameId];
 
   // this.destination64 should be an array of 8 integers. Append it to the payload now.
   for(var i=0; i<8; i++) {
@@ -267,7 +212,7 @@ TransmitRFData.prototype.getPayload = function() {
   // .destination64 and .destination16 are also required.
 
   // begin with the frame type and frame ID
-  var payload = [exports.FT_TRANSMIT_RF_DATA, this.frameId];
+  var payload = [C.FRAME_TYPE.ZIGBEE_TRANSMIT_REQUEST, this.frameId];
 
   // this.destination64 should be an array of 8 integers. Append it to the payload now.
   for(var i=0; i<8; i++) {
@@ -286,7 +231,6 @@ TransmitRFData.prototype.getPayload = function() {
   if (this.RFData) {
     for(var j=0; j<this.RFData.length; j++) {
       payload.push(this.RFData.charCodeAt(j));
-
     }
   }
 
@@ -310,7 +254,7 @@ exports.packetBuilder = function () {
       packpos += 1;     
 
       // Detected start of packet.
-      if (b == exports.START_BYTE) {
+      if (b == C.START_BYTE) {
         packpos = 0;
         packlen = 0;
         running_total = 0;
@@ -339,14 +283,15 @@ exports.packetBuilder = function () {
         } else {
           var parser = new PacketParser(packet)
           var json = parser.parse();
-          //console.log("P: "+util.inspect(json));
-          var event = json.type;
-          if (json.ft === exports.FT_TX_TRANSMIT_STATUS || json.ft === exports.FT_AT_RESPONSE || json.ft === exports.FT_AT_REMOTE_RESPONSE) {
-            event += "_"+json.frameId;
+          if (json.not_implemented) {
+            console.log("FRAME TYPE NOT IMPLEMENTED: %s", C.FRAME_TYPE[json.ft]);
+          } else {
+            var evt = json.ft;
+            if ([C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS,
+                 C.FRAME_TYPE.REMOTE_COMMAND_RESPONSE,
+                 C.FRAME_TYPE.AT_COMMAND_RESPONSE].indexOf(json.ft) >= 0)  evt += C.EVT_SEP+json.frameId;
+            emitter.emit(evt, json);
           }
-          if (json.type === "UNKNOWN")
-            console.log("FRAME: %s (%s). EVT: %s RAW:[%s]", json.ft, json.type, event, exports.bArr2Str(json.rawData));
-          emitter.emit(event, json);
         }
       }
     }
@@ -365,12 +310,12 @@ var PacketParser = function(p) {
 }
 
 PacketParser.prototype.parse = function() {
-  if (this.knownFrames[this.json.ft]) {
-    this.json.type = this.knownFrames[this.json.ft].type;
-    this.knownFrames[this.json.ft].parse(this);
-  } else {
-    this.json.type = "UNKNOWN";
+  if (false) { // TODO: Debug option
+    this.json.desc = C.FRAME_TYPES[this.json.ft];
   }
+
+  this.frames[this.json.ft].parse(this);
+
   return this.json;
 }
 
@@ -414,14 +359,44 @@ PacketParser.prototype.collectPayload = function(name) {
   return this;
 }
 
-PacketParser.prototype.knownFrames = {
-  0x95: {
-    type: "NODE_IDENTIFICATION",
-    parse: function(parser) {
-      parser
-        .readAddr64('sender64')
-        .readAddr16('sender16')
-        .readByte('recieveOptions');
+var frames = PacketParser.prototype.frames = {};
+
+frames[C.FRAME_TYPE.NODE_IDENTIFICATION] = {
+  parse: function(parser) {
+    parser
+      .readAddr64('sender64')
+      .readAddr16('sender16')
+      .readByte('recieveOptions');
+    parser.json.node = {};
+    parser.write = parser.json.node;
+    parser
+      .readAddr16('remote16')
+      .readAddr64('remote64')
+      .readString('id')
+      .readAddr16('remoteParent16')
+      .readByte('deviceType')
+      .readByte('sourceEvent');
+  }
+};
+
+frames[C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS] = {
+  parse: function(parser) {
+    parser
+      .readByte('frameId')
+      .readAddr16('remote16')
+      .readByte('transmitRetryCount')
+      .readByte('deliveryStatus')
+      .readByte('discoveryStatus')
+  }
+};
+
+frames[C.FRAME_TYPE.AT_COMMAND_RESPONSE] = {
+  parse: function(parser) {
+    parser
+      .readByte('frameId')
+      .readString('command', 2)
+      .readByte('commandStatus')
+    if (parser.json.command == 'ND') {
       parser.json.node = {};
       parser.write = parser.json.node;
       parser
@@ -430,80 +405,65 @@ PacketParser.prototype.knownFrames = {
         .readString('id')
         .readAddr16('remoteParent16')
         .readByte('deviceType')
-        .readByte('sourceEvent');
-    }
-  },
-  0x8b: {
-    type: "TX_TRANSMIT_STATUS",
-    parse: function(parser) {
-      parser
-        .readByte('frameId')
-        .readAddr16('remote16')
-        .readByte('transmitRetryCount')
-        .readByte('deliveryStatus')
-        .readByte('discoveryStatus')
-    }
-  },
-  0x88: {
-    type: "AT_RESPONSE",
-    parse: function(parser) {
-      parser
-        .readByte('frameId')
-        .readString('command', 2)
-        .readByte('commandStatus')
-      if (parser.json.command == 'ND') {
-        parser.json.node = {};
-        parser.write = parser.json.node;
-        parser
-          .readAddr16('remote16')
-          .readAddr64('remote64')
-          .readString('id')
-          .readAddr16('remoteParent16')
-          .readByte('deviceType')
-          .readByte('sourceEvent')
-          .readByte('status');
-      } else {
-        parser.collectPayload('commandData')
-      }
-    }
-  },
-  0x97: {
-    type: "REMOTE_AT_RESPONSE",
-    parse: function(parser) {
-      parser
-        .readByte('frameId')
-        .readAddr16('remote16')
-        .readAddr64('remote64')
-        .readString('command', 2)
-        .readByte('commandStatus')
-        .collectPayload('commandData');
-    }
-  },
-  0x90: {
-    type: "RECEIVE_RF_DATA",
-    parse: function(parser) {
-      parser
-        .readAddr64('remote64')
-        .readAddr16('remote16')
-        .readByte('receiveOptions')
-        .collectPayload('rawData');
-    }
-  },
-  0x92: {
-    type: "DATA_SAMPLE_RX",
-    parse: function(parser) {
-      parser
-        .readAddr64('remote64')
-        .readAddr16('remote16')
-        .readByte('receiveOptions')
-        .readByte('numSamples')
-        .readByte('digitalChannelMask', 2)
-        .readByte('analogChannelMask')
-      if (parser.json.digitalChannelMask[0] + parser.json.digitalChannelMask[1] > 0)
-        parser.readByte('digitalSamples',2);
-      if (parser.json.analogChannelMask > 0)
-        parser.collectPayload('analogSamples');
-      // skip formatting data for now
+        .readByte('sourceEvent')
+        .readByte('status');
+    } else {
+      parser.collectPayload('commandData')
     }
   }
-}
+};
+
+frames[C.FRAME_TYPE.REMOTE_COMMAND_RESPONSE] = {
+  parse: function(parser) {
+    parser
+      .readByte('frameId')
+      .readAddr16('remote16')
+      .readAddr64('remote64')
+      .readString('command', 2)
+      .readByte('commandStatus')
+      .collectPayload('commandData');
+  }
+};
+
+frames[C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET] = {
+  parse: function(parser) {
+    parser
+      .readAddr64('remote64')
+      .readAddr16('remote16')
+      .readByte('receiveOptions')
+      .collectPayload('rawData');
+  }
+};
+
+frames[C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX] = {
+  parse: function(parser) {
+    parser
+      .readAddr64('remote64')
+      .readAddr16('remote16')
+      .readByte('receiveOptions')
+      .readByte('numSamples')
+      .readByte('digitalChannelMask', 2)
+      .readByte('analogChannelMask')
+    if (parser.json.digitalChannelMask[0] + parser.json.digitalChannelMask[1] > 0)
+      parser.readByte('digitalSamples',2);
+    if (parser.json.analogChannelMask > 0)
+      parser.collectPayload('analogSamples');
+      // skip formatting data for now
+  }
+};
+
+// Unsupportet Frame Types
+for (key in C.FRAME_TYPES) {
+  var val = C.FRAME_TYPES[key];
+  if (typeof val === 'number') {
+    if (!frames.hasOwnProperty[val]) {
+      frames[val] = {
+        parse: function(parser) {
+          parser.json.not_implemented = true;
+        }
+      }
+    } else {
+      // 
+    }
+  } 
+} 
