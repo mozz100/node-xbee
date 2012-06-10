@@ -2,6 +2,7 @@ var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var api = require("./xbee-api");
 var serialport = require("serialport2");
+var async = require('async');
 //var serialport = require("serialport");
 
 var C = api.Constants;
@@ -94,6 +95,17 @@ function XBee(options, data_parser) {
   self.on(C.FRAME_TYPE.NODE_IDENTIFICATION,      self._onNodeIdentification);
   self.on(C.FRAME_TYPE.ZIGBEE_RECEIVE_PACKET,    self._onReceivePacket);
   self.on(C.FRAME_TYPE.ZIGBEE_IO_DATA_SAMPLE_RX, self._onDataSampleRx);
+  
+  self._queue = async.queue(function(task, callback) {
+    async.series(task.tasks, function(err) {
+      if (err) {
+        console.log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
+        console.log("Task series stopped with error: "+err.msg);
+      }
+      callback(err);
+      if (typeof task._cb === 'function') task._cb(err);
+    });
+  }, 1);
 }
 
 util.inherits(XBee, EventEmitter);
@@ -163,34 +175,48 @@ XBee.prototype.discover = function(cb) {
   }, this.config.nodeDiscoveryTime);
 }
 
-XBee.prototype.broadcast = function(data) {
+XBee.prototype.broadcast = function(data, cb) {
   var remote64 = [0x00,0x00,0x00,0x00,0x00,0x00,0xff,0xff];
   var remote16 = [0xff,0xfe]; 
-  this._send(data, remote64, remote16);
+  this._send(data, remote64, remote16, cb);
 }
 
-XBee.prototype._send = function(data, remote64, remote16) {
-  var frame = new api.TransmitRFData();
-  if (typeof remote64.dec === 'undefined') {
-    frame.destination64 = remote64;
-    frame.destination16 = remote16;
-  } else {
+XBee.prototype._makeTask = function(bytes, frameId) {
+  var self = this;
+  var TXStatusCBEvt = C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS + C.EVT_SEP + frameId;
+  return function(cb) {
+    //console.log("EVT: "+TXStatusCBEvt);
+    //console.log("~~["+bytes.toString("ascii")+"]~~");
+    self.serial.write(bytes);
+    // TODO TIMEOUT!!
+    self.once(TXStatusCBEvt, function(data) {
+      //console.log("CB: "+TXStatusCBEvt);
+      var error = null;
+      if (data.deliveryStatus != C.DELIVERY_STATUS.SUCCESS) {
+        error = data;
+        error.msg = C.DELIVERY_STATUS[data.deliveryStatus];
+      }
+      cb(error);
+    });
+  }
+}
+
+
+
+XBee.prototype._send = function(data, remote64, remote16, _cb) {
+  var self = this;
+  var tasks = [];
+  
+  while (data.length > 0) {
+    var frame = new api.TransmitRFData();
     frame.destination64 = remote64.dec;
     frame.destination16 = remote16.dec;
-  }
-  
-  while (data.length > C.MAX_PAYLOAD_SIZE) {
-    frame.RFData = data.slice(0,C.MAX_PAYLOAD_SIZE);
+    frame.RFData = data.slice(0, C.MAX_PAYLOAD_SIZE);
     data = data.slice(C.MAX_PAYLOAD_SIZE);
-    this.serial.write(frame.getBytes());
+    tasks.push(self._makeTask(frame.getBytes(), frame.frameId));
   }
-
-  frame.RFData = data;
-  this.serial.write(frame.getBytes());
-
-  // TODO: If split, status callbacks should wait or all
-  // transmit-stauses, not just the last.
-  return frame.frameId;
+  if (self._queue.length()>0) console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
+  self._queue.push({ tasks: tasks, _cb: _cb });
 }
 
 XBee.prototype._ATCB = function(cmd, val, cb) {
@@ -207,6 +233,7 @@ XBee.prototype._AT = function(cmd, val) {
   var frame = new api.ATCommand();
   frame.setCommand(cmd);
   frame.commandParameter = val;
+  //console.log("USE QUEUE!");
   this.serial.write(frame.getBytes());
   return frame.frameId;
 }
@@ -222,6 +249,7 @@ XBee.prototype._remoteAT = function(cmd, remote64, remote16, val) {
     frame.destination64 = remote64.dec;
     frame.destination16 = remote16.dec;
   }
+  //console.log("USE QUEUE!");
   this.serial.write(frame.getBytes());
   return frame.frameId;
 }
@@ -240,18 +268,7 @@ function Node(xbee, params, data_parser) {
 util.inherits(Node, EventEmitter);
 
 Node.prototype.send = function(data, cb) {
-  var frameId = this.xbee._send(data, this.remote64, this.remote16);
-  if (typeof cb === 'function') {
-    var TXStatusCBEvt = C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS + C.EVT_SEP + frameId;
-    this.xbee.once(TXStatusCBEvt, function(data) {
-      var error = false;
-      if (data.deliveryStatus != C.DELIVERY_STATUS.SUCCESS) {
-        error = data;
-        error.msg = C.DELIVERY_STATUS[data.deliveryStatus];
-      }
-      cb(error);
-    });
-  }
+  this.xbee._send(data, this.remote64, this.remote16, cb);
 }
 
 Node.prototype._onReceivePacket = function(data) {
