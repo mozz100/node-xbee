@@ -2,6 +2,12 @@
     "version" :     "0.0.9",
     "description" : "A more high level fork of Richard Morrison's node-xbee",
     "author":       "Jan Kolkmeier <jankolkmeier@gmail.com>",
+    "maintainers":  "Jan Kolkmeier <jankolkmeier@gmail.com>",
+    "contributors": [
+      "Jan Kolkmeier <jankolkmeier@gmail.com>",
+      "Richard Morrison <richard@rmorrison.net>",
+      "msealand"
+    ],
     "main":         "xbee.js",
     "keywords":     [ "xbee", "serialport", "robots", "sensors", "automation", "control" ],
     "homepage":     "https://github.com/jouz/node-xbee-svd",
