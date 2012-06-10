@@ -196,7 +196,7 @@ XBee.prototype._makeTask = function(bytes, frameId) {
 
     self.once(TXStatusCBEvt, function(data) {
       clearTimeout(timeout);
-      console.log("CB: "+TXStatusCBEvt);
+      //console.log("CB: "+TXStatusCBEvt);
       var error = null;
       if (data.deliveryStatus != C.DELIVERY_STATUS.SUCCESS) {
         error = data;
