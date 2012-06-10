@@ -48,9 +48,9 @@ exports.bArr2Dec = function(a) {
 var frameId = 0x00;
 
 function incrementFrameId() {
-  // increment frameId and make sure it's <=255
   frameId += 1;
-  frameId %= 256;
+  frameId %= 126; // fails if it exactly 126 (0x7e is start byte)
+  if (frameId == 0) frameId = 1; // 0x00 means: no response expected
   return frameId;
 }
 
@@ -289,7 +289,9 @@ exports.packetBuilder = function () {
             var evt = json.ft;
             if ([C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS,
                  C.FRAME_TYPE.REMOTE_COMMAND_RESPONSE,
-                 C.FRAME_TYPE.AT_COMMAND_RESPONSE].indexOf(json.ft) >= 0)  evt += C.EVT_SEP+json.frameId;
+                 C.FRAME_TYPE.AT_COMMAND_RESPONSE].indexOf(json.ft) >= 0)  {
+                 evt += C.EVT_SEP+json.frameId;
+            }
             emitter.emit(evt, json);
           }
         }
