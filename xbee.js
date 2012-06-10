@@ -55,6 +55,8 @@ function XBee(options, data_parser) {
       self.nodes[node.remote64.hex] = new Node(self, node, data_parser);
       self.emit("node", self.nodes[node.remote64.hex]);
     } else {
+      // update 16-bit address, as it may change during reconnects.
+      self.nodes[node.remote64.hex].remote16 = node.remote16;
       self.nodes[node.remote64.hex].emit("reconnect");
       // RemoveAllListeners?
       // self.nodes[node.remote64.hex].removeAllListeners();
@@ -99,10 +101,9 @@ function XBee(options, data_parser) {
   self._queue = async.queue(function(task, callback) {
     async.series(task.tasks, function(err) {
       if (err) {
-        console.log("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~");
-        console.log("Task series stopped with error: "+err.msg);
+        console.log("Error writing data to XBee: "+err.msg);
       }
-      callback(err);
+      callback(); // maybe pass the error here, too? Would clear whole queue
       if (typeof task._cb === 'function') task._cb(err);
     });
   }, 1);
@@ -189,8 +190,13 @@ XBee.prototype._makeTask = function(bytes, frameId) {
     //console.log("~~["+bytes.toString("ascii")+"]~~");
     self.serial.write(bytes);
     // TODO TIMEOUT!!
+    var timeout = setTimeout(function() {
+      cb({ msg: "Never got Transmit status from XBee" });
+    }, 100);
+
     self.once(TXStatusCBEvt, function(data) {
-      //console.log("CB: "+TXStatusCBEvt);
+      clearTimeout(timeout);
+      console.log("CB: "+TXStatusCBEvt);
       var error = null;
       if (data.deliveryStatus != C.DELIVERY_STATUS.SUCCESS) {
         error = data;
@@ -200,8 +206,6 @@ XBee.prototype._makeTask = function(bytes, frameId) {
     });
   }
 }
-
-
 
 XBee.prototype._send = function(data, remote64, remote16, _cb) {
   var self = this;
@@ -215,7 +219,6 @@ XBee.prototype._send = function(data, remote64, remote16, _cb) {
     data = data.slice(C.MAX_PAYLOAD_SIZE);
     tasks.push(self._makeTask(frame.getBytes(), frame.frameId));
   }
-  if (self._queue.length()>0) console.log("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
   self._queue.push({ tasks: tasks, _cb: _cb });
 }
 
