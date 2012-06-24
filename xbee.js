@@ -1,5 +1,5 @@
 var Buffer = require('buffer').Buffer;
-var sys = require('sys');
+var util = require('util');
 
 function decimalToHex(d, padding) {
     var hex = Number(d).toString(16);
@@ -128,7 +128,7 @@ exports.Packet = Packet;
 var ATCommand = function() {
   this.frameId = incrementFrameId();
 };
-sys.inherits(ATCommand, Packet);
+util.inherits(ATCommand, Packet);
 
 ATCommand.prototype.setCommand = function(strCmd) {
   // take the ascii command and save it internally as byte values command0 and command1
@@ -165,7 +165,7 @@ var RemoteATCommand = function() {
   this.frameId = incrementFrameId();
   this.remoteCommandOptions = 0x02;  // set default command options on creation
 };
-sys.inherits(RemoteATCommand, ATCommand);
+util.inherits(RemoteATCommand, ATCommand);
 
 RemoteATCommand.prototype.getPayload = function() {
   // Returns a JS array of byte values
@@ -210,7 +210,7 @@ var TransmitRFData = function() {
   this.broadcastRadius = 0x00;     // use maximum hops value by default
   this.options = 0x00;             // see digi docs for more info
 }
-sys.inherits(TransmitRFData, Packet);
+util.inherits(TransmitRFData, Packet);
 
 TransmitRFData.prototype.getPayload = function() {
   // Returns a JS array of byte values
