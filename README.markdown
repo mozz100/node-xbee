@@ -43,9 +43,9 @@ Like node-serialport, using this is "pretty easy because it is pretty basic. It 
 To Install
 ----------
 
-You'll need serialport as well (this module doesn't depend on it, but it provides a parser so this is the intended use pattern)
+You'll need serialport as well (this module doesn't depend on it in a strict sense, but it provides a parser - so this is the intended use pattern)
 
-    npm install serialport
+    npm install serialport@0.7.3  # known to work with this version
     npm install xbee
 
 To Use
