@@ -45,11 +45,11 @@ exports.bArr2Dec = function(a) {
 // module-level variable for storing a frameId.
 // Gets incremented by 1 each time it's used, so that you can
 // tell which responses relate to which XBee commands
-var frameId = 0x00;
+var frameId = 0x30;
 
 function incrementFrameId() {
-  frameId += 1;
-  frameId %= 126; // fails if it exactly 126 (0x7e is start byte)
+  frameId++;
+  frameId %= 255; // fails if it exactly 126 (0x7e is start byte)
   if (frameId == 0) frameId = 1; // 0x00 means: no response expected
   return frameId;
 }
@@ -95,18 +95,26 @@ Packet.prototype.getBytes = function() {
     // finally append the checksum byte and return the packet as a JS array
     packetdata.push(checksum);
 
-
-    var string = "";
-    for (i in packetdata) {
-      string += String.fromCharCode(packetdata[i]);
+    // could be shorter:
+    var res = [packetdata[0]];
+    for (var p = 1; p<packetdata.length; p++) {
+      if (packetdata[p] == C.START_BYTE || 
+          packetdata[p] == C.ESCAPE ||
+          packetdata[p] == C.XOFF ||
+          packetdata[p] == C.XON) {
+        res.push(C.ESCAPE);
+        res.push(packetdata[p] ^ 0x20);
+      } else res.push(packetdata[p]);
     }
 
-    var res = new Buffer(packetdata);
-
+    //console.log(res+" "+res.toString('hex'));
     //console.log(packetdata);
     //console.log(util.inspect(res));
+    //
+    var out = new Buffer(res);
+    //console.log(">>> "+util.inspect(out));
 
-    return res;
+    return out;
 }
 
 Packet.prototype.getPayload = function() {
@@ -246,12 +254,24 @@ exports.packetBuilder = function () {
   var packlen = 0;   // used to remember the length of the current packet. 
   var running_total = 0;
   var checksum = -1;
+  var escape_next = false;
 
-  return function (emitter, buffer) {
+  return function(emitter, buffer) {
     // Collecting data. 
     for(var i=0; i < buffer.length; i++) {
       b = buffer[i]; // store the working byte
-      packpos += 1;     
+
+      if (packpos > 0 && b == C.ESCAPE) {
+        escape_next = true;
+        continue;
+      }
+
+      if (escape_next) {
+        b = 0x20 ^ b;
+        escape_next = false;
+      }
+
+      packpos += 1; 
 
       // Detected start of packet.
       if (b == C.START_BYTE) {
@@ -260,11 +280,11 @@ exports.packetBuilder = function () {
         running_total = 0;
         checksum = -1;
         packet = [];
+        escape_next = false;
       }
 
       if (packpos == 1) packlen += b << 8; // most significant bit of the length
       if (packpos == 2) packlen += b;   // least significant bit of the length
-
       if ((packlen > 0) && (packpos > 2)) {
         if (packet.length < packlen) {
           packet.push(b);
@@ -281,6 +301,7 @@ exports.packetBuilder = function () {
         if (!checksum === 255 - (running_total % 256)) {
           console.log("CHECKSUM_MISMATCH"); 
         } else {
+          //console.log(">>> "+util.inspect(packet));
           var parser = new PacketParser(packet)
           var json = parser.parse();
           if (json.not_implemented) {
@@ -292,6 +313,7 @@ exports.packetBuilder = function () {
                  C.FRAME_TYPE.AT_COMMAND_RESPONSE].indexOf(json.ft) >= 0)  {
                  evt += C.EVT_SEP+json.frameId;
             }
+            //console.log(">>> "+C.FRAME_TYPE[json.ft]+" "+evt);
             emitter.emit(evt, json);
           }
         }

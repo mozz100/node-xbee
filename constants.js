@@ -1,11 +1,15 @@
 exports = module.exports;
 exports.START_BYTE = 0x7E;
+exports.ESCAPE = 0x7D;
+exports.XOFF = 0x13;
+exports.XON = 0x11;
 exports.EVT_SEP = "_";
 exports.MAX_PAYLOAD_SIZE = 74;
 
 var ft = exports.FRAME_TYPE = {};
 var diss = exports.DISCOVERY_STATUS = {};
 var dels = exports.DELIVERY_STATUS = {};
+var coms = exports.COMMAND_STATUS = {};
 var ro = exports.RECEIVE_OPTIONS = {};
 
 
@@ -46,6 +50,18 @@ ft.ROUTE_RECORD = 0xA1;
 ft[0xA1] = "Route Record Indicator (0xA1)";
 ft.MTO_ROUTE_REQUEST = 0xA3;
 ft[0xA3] = "Many-to-One Route Request Indicator (0xA3)";
+
+// Command Status
+coms.OK = 0x00;
+coms[0x00] = "OK (0x00)";
+coms.ERROR = 0x01;
+coms[0x01] = "ERROR (0x01)";
+coms.INVALID_COMMAND = 0x02;
+coms[0x02] = "Invalid Command (0x02)";
+coms.INVALID_PARAMETER = 0x03;
+coms[0x03] = "Invalid Command (0x03)";
+coms.REMOTE_CMD_TRANS_FAILURE = 0x04;
+coms[0x04] = "Remote Command Transmission Failed (0x04)";
 
 // Delivery Status
 dels.SUCCESS = 0x00;
