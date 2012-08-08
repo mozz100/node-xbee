@@ -1,5 +1,5 @@
 {   "name" :        "svd-xbee",
-    "version" :     "0.1.1",
+    "version" :     "0.2.0",
     "description" : "A more high level fork of Richard Morrison's node-xbee",
     "author":       "Jan Kolkmeier <jankolkmeier@gmail.com>",
     "maintainers":  "Jan Kolkmeier <jankolkmeier@gmail.com>",
@@ -8,7 +8,7 @@
       "Richard Morrison <richard@rmorrison.net>",
       "msealand"
     ],
-    "main":         "xbee.js",
+    "main":         "./index.js",
     "keywords":     [ "xbee", "serialport", "robots", "sensors", "automation", "control" ],
     "homepage":     "https://github.com/jouz/node-xbee-svd",
     "dependencies": {
