@@ -1,6 +1,6 @@
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
-var api = require("./xbee-api");
+var api = require("./lib/xbee-api.js");
 var serialport = require("serialport");
 var async = require('async');
 var os = require('os');
