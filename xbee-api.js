@@ -106,15 +106,7 @@ Packet.prototype.getBytes = function() {
         res.push(packetdata[p] ^ 0x20);
       } else res.push(packetdata[p]);
     }
-
-    //console.log(res+" "+res.toString('hex'));
-    //console.log(packetdata);
-    //console.log(util.inspect(res));
-    //
-    var out = new Buffer(res);
-    //console.log(">>> "+util.inspect(out));
-
-    return out;
+    return new Buffer(res, 'ascii');
 }
 
 Packet.prototype.getPayload = function() {
@@ -313,7 +305,7 @@ exports.packetBuilder = function () {
                  C.FRAME_TYPE.AT_COMMAND_RESPONSE].indexOf(json.ft) >= 0)  {
                  evt += C.EVT_SEP+json.frameId;
             }
-            //console.log(">>> "+C.FRAME_TYPE[json.ft]+" "+evt);
+            //console.log(">>> "+C.FRAME_TYPE[json.ft]+" "+evt+" "+json.rawData);
             emitter.emit(evt, json);
           }
         }

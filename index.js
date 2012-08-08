@@ -3,46 +3,57 @@ var EventEmitter = require('events').EventEmitter;
 var api = require("./xbee-api");
 var serialport = require("serialport");
 var async = require('async');
+var os = require('os');
 
 var C = api.Constants;
 
 function XBee(options, data_parser) { 
   EventEmitter.call(this);
-  var self = this;
 
   // Option Parsing
   if (typeof options === 'string') {
-    options = {port: options};
+    this.options = { port: options };
+  } else {
+    this.options = options;
   }
 
-  if (typeof data_parser !== 'function') {
-    console.log("Loading simple parser, data will emitted on \\r\\n delimiter.");
-    data_parser = require("./simple-parser"); 
-  }
+  this.data_parser = data_parser || options.data_parser || undefined;
+
+  this.use_heartbeat = options.use_heartbeat || false;
+  this.heartbeat_packet = options.heartbeat_packet || '```';
+  this.heartbeat_timeout = options.heartbeat_timeout || 8000;
 
   // Current nodes
-  self.nodes = {};
+  this.nodes = {};
+}
 
+util.inherits(XBee, EventEmitter);
+
+XBee.prototype.init = function(cb) {
+  var self = this;
   // Serial connection to the XBee
-  self.serial = new serialport.SerialPort(options.port, {
-    baudrate: options.baudrate || 57600,
+  self.serial = new serialport.SerialPort(self.options.port, {
+    baudrate: self.options.baudrate || 57600,
     databits: 8,
     stopbits: 1,
     parity: 'none',
     parser: api.packetBuilder()
   });
 
-  self.serial.on("open", self.configure.bind(self));
+  self.serial.on("open", function() {
+    self.configure.bind(self)(cb);
+  });
 
   var exit = function() { 
-    console.log("Closing Serial");
     self.serial.close(function(err) {
-      if (err) console.log(err);
-      else console.log("Done");
+      if (err) console.log("Error closing port: "+util.inspect(err));
       process.exit();
     });
   }
-  process.on('SIGINT', exit);
+  
+  if (os.platform() !== 'win32') {
+    process.on('SIGINT', exit);
+  }
 
 
   /* Frame-specific Handlers */
@@ -51,7 +62,7 @@ function XBee(options, data_parser) {
   self._onNodeIdentification = function(data) {
     var node = data.node;
     if (!self.nodes[node.remote64.hex]) {
-      self.nodes[node.remote64.hex] = new Node(self, node, data_parser);
+      self.nodes[node.remote64.hex] = new Node(self, node, self.data_parser);
       self.emit("node", self.nodes[node.remote64.hex]);
     } else {
       // update 16-bit address, as it may change during reconnects.
@@ -98,16 +109,14 @@ function XBee(options, data_parser) {
   
   self._queue = async.queue(function(task, callback) {
     async.series(task.packets, function(err, data) {
-      if (err) console.log("Error writing data to XBee: "+err);
+      if (err) console.log("Error writing data to XBee "+util.inspect(err));
       if (typeof task.cb === 'function') task.cb(err, data[data.length-1]);
       callback();
     });
   }, 1);
 }
 
-util.inherits(XBee, EventEmitter);
-
-XBee.prototype.configure = function() {
+XBee.prototype.configure = function(_done_cb) {
   var self = this;
   /*
   self._ATCB('ID', undefined, function(data) {
@@ -137,13 +146,14 @@ XBee.prototype.configure = function() {
   };
   
   var done = function(err, results) {
-    if (err) return console.log("Failure to configure XBee module: %s", err);
+    if (err) {
+      self.emit("error", new Error("Failure to configure XBee module: "+util.inspect(err)));
+      if (typeof _done_cb === 'function') _done_cb(err);
+    }
     self.config = results;
     self.emit("configured", self.config);
-    console.log("[Start Discovery]");
-    self.discover(function() {
-      console.log("[End Discovery]");
-    });
+    if (typeof _done_cb === 'function') _done_cb(null, self.config);
+    self.discover();
   }
 
   // Using async to start discovery only when all parameters have been read.
@@ -171,7 +181,7 @@ XBee.prototype.discover = function(cb) {
   var cbid = self._AT('ND');
   self.serial.on(cbid, self._onNodeIdentification);
   setTimeout(function() {
-    cb(); 
+    if (typeof cb === 'function') cb(); 
     self.removeAllListeners(cbid);
   }, self.config.nodeDiscoveryTime || 6000);
 }
@@ -184,17 +194,21 @@ XBee.prototype.broadcast = function(data, cb) {
 
 XBee.prototype._makeTask = function(packet) {
   var self = this;
-  //console.log("Making task: "+packet.cbid);
   return function Writer(cb) {
     //console.log("<<< "+util.inspect(packet.data));
+    //console.log("<<< "+packet.data);
+    var timeout = setTimeout(function() {
+      cb({ msg: "Never got Transmit status from XBee" });
+    }, 1000);
     self.serial.write(packet.data, function(err, results) {
       if (err) {
         cb(err);
       } else {
+        //console.log(util.inspect(packet.data));
         if (results != packet.data.length) return cb(new Error("Not all bytes written"));
         self.serial.once(packet.cbid, function(data) {
           //console.log("Got Respones: "+packet.cbid);
-          //clearTimeout(timeout);
+          clearTimeout(timeout);
           var error = null;
           if (data.commandStatus && data.commandStatus != C.COMMAND_STATUS.OK) {
             error = C.COMMAND_STATUS[data.commandStatus];
@@ -205,12 +219,6 @@ XBee.prototype._makeTask = function(packet) {
         });
       }
     });
-    /*
-    var timeout = setTimeout(function() {
-      cb({ msg: "Never got Transmit status from XBee" });
-    }, 1000);
-    */
-
   };
 }
 
@@ -227,7 +235,6 @@ XBee.prototype._send = function(data, remote64, remote16, _cb) {
       cbid: C.FRAME_TYPE.ZIGBEE_TRANSMIT_STATUS + C.EVT_SEP + frame.frameId
     }));
   }
-  //console.log("Sending %s packets", packets.length);
 
   this._queue.push({ packets:packets, cb:_cb });
 }
@@ -277,7 +284,8 @@ function Node(xbee, params, data_parser) {
   this.remote16 = params.remote16;
   this.remote64 = params.remote64;
   this.buffer = "";
-  this.parser = data_parser(this);
+  if (typeof data_parser === 'function')
+    this.parser = data_parser(this);
   this.timeout = {};
   this.connected = true;
   this.refreshTimeout();
@@ -292,7 +300,7 @@ Node.prototype.timeoutOccured = function() {
 
 Node.prototype.refreshTimeout = function() {
   clearTimeout(this.timeout);
-  this.timeout = setTimeout(this.timeoutOccured.bind(this), 8000);
+  this.timeout = setTimeout(this.timeoutOccured.bind(this), this.xbee.heartbeat_timeout);
   if (!this.connected) {
     this.connected = true;
     // todo other stuff
@@ -304,10 +312,14 @@ Node.prototype.send = function(data, cb) {
 }
 
 Node.prototype._onReceivePacket = function(data) {
-  // Send the whole data object, or just the parsed msg?
-  var packet = api.bArr2Str(data.rawData);
-  if (packet === '```') this.refreshTimeout();
-  else this.parser.parse(packet);
+  // TODO: should be buffer all along!
+  var packet = new Buffer(data.rawData).toString('ascii');
+  if (this.xbee.use_heartbeat && packet === this.xbee.heartbeat_packet)
+    this.refreshTimeout();
+  else if (this.parser !== undefined)
+    this.parser.parse(packet);
+  else
+    this.emit('data', packet);
 }
 
 /*
