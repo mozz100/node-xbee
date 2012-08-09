@@ -109,7 +109,6 @@ XBee.prototype.init = function(cb) {
   
   self._queue = async.queue(function(task, callback) {
     async.series(task.packets, function(err, data) {
-      if (err) console.log("Error writing data to XBee "+util.inspect(err));
       if (typeof task.cb === 'function') task.cb(err, data[data.length-1]);
       callback();
     });
