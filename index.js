@@ -23,6 +23,8 @@ function XBee(options, data_parser) {
   this.heartbeat_packet = options.heartbeat_packet || '```';
   this.heartbeat_timeout = options.heartbeat_timeout || 8000;
 
+  if (options.api_mode) api.api_mode = options.api_mode;
+
   // Current nodes
   this.nodes = {};
 }
