@@ -9,7 +9,7 @@ module.exports = function (device) {
     var split = this.buffer.indexOf(delimiter);
     while (split > -1) {
       this.device.emit('data', this.buffer.slice(0,split));
-      this.buffer = this.buffer.slice(split+2);
+      this.buffer = this.buffer.slice(split+delimiter.length);
       split = this.buffer.indexOf(delimiter);
     }
   }
