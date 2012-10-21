@@ -44,7 +44,7 @@ This work is inspired by:
 Setup
 =====
 
-I have my xbee coordinator radio connected to the computer running Node.  Crucially, the coordinator is in xbee's API mode - this is required to allow you to send remote instructions, and so on.
+I have my xbee coordinator radio connected to the computer running Node.  Crucially, the coordinator is in xbee's API mode 2 - this is required to allow you to send remote instructions, and so on, and uses escaping to improve reliability.
 
 My remote xbee network modules send periodic measurements and I can push them to web browsers, save them in a database, etc.
 
