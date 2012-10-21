@@ -331,11 +331,18 @@ Node.prototype._onReceivePacket = function(data) {
     this.emit('data', packet);
 }
 
-/*
-Node.prototype._AT = function(cmd, val) {
-  this.xbee._remoteAT(cmd, this.remote64, this.remote16, val);
+Node.prototype.ATCommand = function(cmd, val, cb) {
+  // val parameter is optional
+  if (typeof val === "function") {
+    // use val as the callback in this case
+    this.xbee._remoteAT(cmd, this.remote64, this.remote16, val);
+  } else {
+    this.xbee._remoteAT(cmd, this.remote64, this.remote16, val, cb);
+  }
+
 }
 
+/*
 Node.prototype._onATResponse = function(res) {
   console.log("Node %s got AT_RESPONSE: %s", util.inspect(res));
 }
