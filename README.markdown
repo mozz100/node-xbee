@@ -26,6 +26,17 @@ This work is inspired by:
 * voodootikigod's [serialport module](https://github.com/voodootikigod/node-serialport) (in fact you're going to need this to use this package)
 * "[Building Wireless Sensor Networks](http://shop.oreilly.com/product/9780596807740.do)" by Rob Faludi
 
+Getting Started?
+================
+
+If you're just getting started, you should check out [https://github.com/jouz/svd-xbee](https://github.com/jouz/svd-xbee)
+
+jouz has taken what I started and built upon it.  When I start a new project, I plan to use his code rather than my own.
+
+In essence, it's a wrapper around the API that I've written that makes it easier to work with.  Recommended.
+
+I'll keep this code here (it may get moved into a different branch in future).
+
 Setup
 =====
 
