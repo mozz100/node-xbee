@@ -2,7 +2,7 @@ A more high level fork of Richard Morrison's node-xbee.
 
 Example
 =======
-As no parser function is passed to the XBee() constructor, the default parser will be used (see simple-parser.js). The default parser will merge frames and emit them split by \r\n (so if you wonder why no data is emitted, make sure you use the right delimiter!).
+If you pass no parser function to the XBee() constructor, nodes will emit each data packet that they receive as a 'data' event. See simple-parser.js for a basic parser that splits on \r, and is easily adapted if you wish to use \n or some other delimiter.  The simple parser will merge frames and emit them split by your delimiter (so if you wonder why no data is emitted, make sure you use the right delimiter!).
 
 Set things up like this, substituting in paramaters that match your Xbee network:
 
