@@ -29,7 +29,10 @@ This work is inspired by:
 Getting Started?
 ================
 
-If you're just getting started, you should check out [https://github.com/jouz/svd-xbee](https://github.com/jouz/svd-xbee)
+----
+
+<h4>If you're just getting started, check out [https://github.com/jouz/svd-xbee](https://github.com/jouz/svd-xbee)</h4>
+----
 
 jouz has taken what I started and built upon it.  When I start a new project, I plan to use his code rather than my own.
 
