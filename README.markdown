@@ -31,7 +31,7 @@ Getting Started?
 
 ----
 
-<h4>If you're just getting started, check out [https://github.com/jouz/svd-xbee](https://github.com/jouz/svd-xbee)</h4>
+<h4>If you're just getting started, check out <a href="https://github.com/jouz/svd-xbee">jouz/svd-xbee<a> and <a href="https://github.com/jankolkmeier/xbee-api">jankolkmeier/xbee-api</a></h4>
 ----
 
 jouz has taken what I started and built upon it.  When I start a new project, I plan to use his code rather than my own.
